@@ -9,7 +9,7 @@ from torchcam.methods import SmoothGradCAMpp
 from load_images import build_dataloader
 from torchvision.transforms.functional import resize
 from torchvision.io.image import read_image
-
+from torchcam.utils import overlay_mask
 # Configuração dos experimentos
 num_classes = 7
 image_size = 128
@@ -29,14 +29,14 @@ HEADERS = {"Authorization": comet_api_key, "Content-Type": "application/json"}
 asset_id = 'adebef4600144192bec7c810b3e3d809'
 # Baixar o modelo do Comet ML
 model_path = "model.pth"
-response = requests.get(f"{COMET_BASE_URL}/experiment/asset/get-asset?experimentKey={experiment_key}&assetId={asset_id}", headers=HEADERS)
-if response.status_code == 200:
-    with open(model_path, "wb") as f:
-        f.write(response.content)
-else:
-    print(f'status code {response.status_code} - {response.text}')
-    raise Exception("Erro ao baixar o modelo do Comet ML")
-
+#response = requests.get(f"{COMET_BASE_URL}/experiment/asset/get-asset?experimentKey={experiment_key}&assetId={asset_id}", headers=HEADERS)
+#if response.status_code == 200:
+#    with open(model_path, "wb") as f:
+#        f.write(response.content)
+#else:
+#    print(f'status code {response.status_code} - {response.text}')
+#    raise Exception("Erro ao baixar o modelo do Comet ML")
+#
 
 #model = models.resnet18(pretrained=False)
 #model.load_state_dict(torch.load(model_path))
@@ -48,12 +48,13 @@ model.load_state_dict(torch.load(model_path)['model_state_dict'])
 
 img = read_image(images[0])
 input_tensor = resize(img,  (image_size, image_size))
-cam_extractor = SmoothGradCAMpp(model)
-print(input_tensor.unsqueeze(0).shape)
+cam_extractor = SmoothGradCAMpp(model)#, target_layer="features")
 out = model(input_tensor.unsqueeze(0).float())
 
 
-activation_map = cam_extractor(out.squeeze(0).argmax().item(), out)
+cams = cam_extractor(out.squeeze(0).argmax().item(), out)
+#print(model.eval())
 
-plt.imsave(activation_map[0].squeeze(0).numpy());
+for name, cam in zip(cam_extractor.target_names, cams):
+    plt.imsave("cam.png", cam.squeeze(0).numpy());
 print("Processo concluído e imagens enviadas para o Comet ML!")
